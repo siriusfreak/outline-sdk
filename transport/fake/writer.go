@@ -21,6 +21,8 @@ import (
 type fakeWriter struct {
 	writer      io.Writer
 	prefixBytes int64
+	fakeData    []byte
+	fakeOffset  int64
 }
 
 var _ io.Writer = (*fakeWriter)(nil)
@@ -36,8 +38,8 @@ var _ io.ReaderFrom = (*fakeWriterReaderFrom)(nil)
 // A write will end right after byte index prefixBytes - 1, before a write starting at byte index prefixBytes.
 // For example, if you have a write of [0123456789] and prefixBytes = 3, you will get writes [012] and [3456789].
 // If the input writer is a [io.ReaderFrom], the output writer will be too.
-func NewWriter(writer io.Writer, prefixBytes int64) io.Writer {
-	sw := &fakeWriter{writer, prefixBytes}
+func NewWriter(writer io.Writer, prefixBytes int64, fakeData []byte, fakeOffset int64) io.Writer {
+	sw := &fakeWriter{writer, prefixBytes, fakeData, fakeOffset}
 	if rf, ok := writer.(io.ReaderFrom); ok {
 		return &fakeWriterReaderFrom{sw, rf}
 	}
@@ -52,7 +54,13 @@ func (w *fakeWriterReaderFrom) ReadFrom(source io.Reader) (int64, error) {
 }
 
 func (w *fakeWriter) Write(data []byte) (written int, err error) {
-	// TODO: Implement
+	if w.fakeOffset < int64(len(w.fakeData)) {
+		n, err := w.writer.Write(w.fakeData[w.fakeOffset:])
+		w.fakeOffset += int64(n)
+		if err != nil {
+			return n, err
+		}
+	}
 	if 0 < w.prefixBytes && w.prefixBytes < int64(len(data)) {
 		written, err = w.writer.Write(data[:w.prefixBytes])
 		w.prefixBytes -= int64(written)
