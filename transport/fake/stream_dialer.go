@@ -36,7 +36,7 @@ func NewStreamDialer(dialer transport.StreamDialer, prefixBytes int64, fakeData 
 	if dialer == nil {
 		return nil, errors.New("argument dialer must not be nil")
 	}
-	return &fakeDialer{dialer: dialer, splitPoint: prefixBytes}, nil
+	return &fakeDialer{dialer: dialer, splitPoint: prefixBytes, fakeData: fakeData, fakeOffset: fakeOffset}, nil
 }
 
 // DialStream implements [transport.StreamDialer].DialStream.
