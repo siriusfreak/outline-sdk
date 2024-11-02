@@ -53,6 +53,7 @@ func RegisterDefaultProviders(c *ProviderContainer) *ProviderContainer {
 	registerSOCKS5PacketListener(&c.PacketListeners, "socks5", c.StreamDialers.NewInstance, c.PacketDialers.NewInstance)
 
 	registerSplitStreamDialer(&c.StreamDialers, "split", c.StreamDialers.NewInstance)
+	registerFakeStreamDialer(&c.StreamDialers, "fake", c.StreamDialers.NewInstance)
 
 	registerShadowsocksStreamDialer(&c.StreamDialers, "ss", c.StreamDialers.NewInstance)
 	registerShadowsocksPacketDialer(&c.PacketDialers, "ss", c.PacketDialers.NewInstance)
