@@ -34,6 +34,8 @@ func registerFakeStreamDialer(r TypeRegistry[transport.StreamDialer], typeID str
 		if err != nil {
 			return nil, fmt.Errorf("prefixBytes is not a number: %v. Fake config should be in fake:<number> format", prefixBytesStr)
 		}
-		return fake.NewStreamDialer(sd, int64(prefixBytes))
+		var fakeData []byte  // TODO: Read fake data from the CLI or use a default value (depending on the protocol).
+		var fakeOffset int64 // TODO: Read fake offset from the CLI or use a default value (0).
+		return fake.NewStreamDialer(sd, int64(prefixBytes), fakeData, fakeOffset)
 	})
 }

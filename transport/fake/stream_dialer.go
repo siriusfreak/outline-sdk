@@ -22,19 +22,21 @@ import (
 )
 
 type fakeDialer struct {
-	dialer    transport.StreamDialer
-	fakePoint int64
+	dialer     transport.StreamDialer
+	splitPoint int64
+	fakeData   []byte
+	fakeOffset int64
 }
 
 var _ transport.StreamDialer = (*fakeDialer)(nil)
 
-// NewStreamDialer creates a [transport.StreamDialer] that fakes the outgoing stream after writing "prefixBytes" bytes
-// using [FakeWriter].
-func NewStreamDialer(dialer transport.StreamDialer, prefixBytes int64) (transport.StreamDialer, error) {
+// NewStreamDialer creates a [transport.StreamDialer] that writes "fakeData" in the beginning of the stream and
+// then splits the outgoing stream after writing "prefixBytes" bytes using [FakeWriter].
+func NewStreamDialer(dialer transport.StreamDialer, prefixBytes int64, fakeData []byte, fakeOffset int64) (transport.StreamDialer, error) {
 	if dialer == nil {
 		return nil, errors.New("argument dialer must not be nil")
 	}
-	return &fakeDialer{dialer: dialer, fakePoint: prefixBytes}, nil
+	return &fakeDialer{dialer: dialer, splitPoint: prefixBytes}, nil
 }
 
 // DialStream implements [transport.StreamDialer].DialStream.
@@ -43,5 +45,5 @@ func (d *fakeDialer) DialStream(ctx context.Context, remoteAddr string) (transpo
 	if err != nil {
 		return nil, err
 	}
-	return transport.WrapConn(innerConn, innerConn, NewWriter(innerConn, d.fakePoint)), nil
+	return transport.WrapConn(innerConn, innerConn, NewWriter(innerConn, d.splitPoint, d.fakeData, d.fakeOffset)), nil
 }
