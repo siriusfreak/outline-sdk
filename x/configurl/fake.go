@@ -53,7 +53,7 @@ var tls_data = [517]byte{
 	0xb1, 0xd1, 0xe2, 0xab, 0xe0, 0x16, 0x63, 0xd6, 0xdc, 0xda, 0x84, 0xa4, 0xb8,
 	0x4b, 0xfb, 0x0e, 0x00, 0x15, 0x00, 0xac, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }
-var http_data string = "GET / HTTP/1.1\r\nHost: www.wikipedia.org\r\n\r\n"
+var http_data = []byte("GET / HTTP/1.1\r\nHost: www.wikipedia.org\r\n\r\n")
 var udp_data [64]byte
 
 func registerFakeStreamDialer(r TypeRegistry[transport.StreamDialer], typeID string, newSD BuildFunc[transport.StreamDialer]) {
@@ -72,7 +72,7 @@ func registerFakeStreamDialer(r TypeRegistry[transport.StreamDialer], typeID str
 		// or use a default value (depending on the protocol).
 		// TODO: Read fake offset from the CLI
 		var fakeOffset int64 = 0
-		var md5Sig bool      // TODO: Read md5 signature from the CLI or use a default value (false).
+		var md5Sig bool // TODO: Read md5 signature from the CLI or use a default value (false).
 		return fake.NewStreamDialer(sd, int64(prefixBytes), fakeData, fakeOffset)
 	})
 }
