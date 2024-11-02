@@ -73,6 +73,6 @@ func registerFakeStreamDialer(r TypeRegistry[transport.StreamDialer], typeID str
 		// TODO: Read fake offset from the CLI
 		var fakeOffset int64 = 0
 		var md5Sig bool // TODO: Read md5 signature from the CLI or use a default value (false).
-		return fake.NewStreamDialer(sd, int64(prefixBytes), fakeData, fakeOffset)
+		return fake.NewStreamDialer(sd, int64(prefixBytes), fakeData, fakeOffset, md5Sig)
 	})
 }

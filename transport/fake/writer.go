@@ -1,6 +1,7 @@
 package fake
 
 import (
+	"bytes"
 	"io"
 )
 
@@ -32,35 +33,45 @@ func NewWriter(writer io.Writer, fakeBytes int64, fakeData []byte, fakeOffset in
 	return sw
 }
 
-func (w *fakeWriterReaderFrom) ReadFrom(source io.Reader) (int64, error) {
+func (w *fakeWriterReaderFrom) ReadFrom(source io.Reader) (written int64, err error) {
+	fakeData := w.getFakeData()
+	if fakeData != nil {
+		fakeN, err := w.rf.ReadFrom(bytes.NewReader(fakeData))
+		written += fakeN
+		if err != nil {
+			return written, err
+		}
+	}
 	reader := io.MultiReader(io.LimitReader(source, w.fakeBytes), source)
-	written, err := w.rf.ReadFrom(reader)
-	w.fakeBytes -= written
+	n, err := w.rf.ReadFrom(reader)
+	written += n
 	return written, err
 }
 
 func (w *fakeWriter) Write(data []byte) (written int, err error) {
-	fakeN, err := w.writeFakeData()
-	written += fakeN
-	if err != nil {
-		return fakeN, err
+	fakeData := w.getFakeData()
+	if fakeData != nil {
+		fakeN, err := w.writer.Write(fakeData)
+		written += fakeN
+		if err != nil {
+			return written, err
+		}
 	}
 	n, err := w.writer.Write(data)
 	written += n
 	return written, err
 }
 
-func (w *fakeWriter) writeFakeData() (int, error) {
+func (w *fakeWriter) getFakeData() []byte {
 	if w.fakeOffset >= int64(len(w.fakeData)) {
-		return 0, nil
+		return nil
 	}
 	data := w.fakeData[w.fakeOffset:]
 	if w.fakeBytes < int64(len(data)) {
 		data = data[:w.fakeBytes]
 	}
 	if len(data) == 0 {
-		return 0, nil
+		return nil
 	}
-	n, err := w.writer.Write(data)
-	return n, err
+	return data
 }
