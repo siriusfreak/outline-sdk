@@ -44,7 +44,7 @@ func TestWrite_FullFake(t *testing.T) {
 	fakeData := []byte("Fake data")   // 9 bytes
 	fakeBytes := int64(len(fakeData)) // 9
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset, 0)
 	n, err := fakeWriter.Write([]byte("Request")) // 7 bytes
 	require.NoError(t, err)
 	require.Equal(t, 16, n) // 9 fake + 7 real
@@ -56,7 +56,7 @@ func TestWrite_PartialFake(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(5)           // Inject first 5 bytes: "Fake "
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset, 0)
 	n, err := fakeWriter.Write([]byte("Request")) // 7 bytes
 	require.NoError(t, err)
 	require.Equal(t, 12, n) // 5 fake + 7 real
@@ -68,7 +68,7 @@ func TestWrite_NoFake(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(0)           // No fake data
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset, 0)
 	n, err := fakeWriter.Write([]byte("Request")) // 7 bytes
 	require.NoError(t, err)
 	require.Equal(t, 7, n) // 0 fake + 7 real
@@ -80,7 +80,7 @@ func TestWrite_WithOffset(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(4)           // Inject 4 bytes starting from offset
 	fakeOffset := int64(5)          // fakeData[5:] = "data"
-	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset, 0)
 	n, err := fakeWriter.Write([]byte("Request")) // 7 bytes
 	require.NoError(t, err)
 	require.Equal(t, 11, n) // 4 fake + 7 real
@@ -92,7 +92,7 @@ func TestWrite_NeedsTwoWrites(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(6)           // Inject first 6 bytes: "Fake d"
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset, 0)
 	n, err := fakeWriter.Write([]byte("Request")) // 7 bytes
 	require.NoError(t, err)
 	require.Equal(t, 13, n) // 6 fake + 7 real
@@ -105,13 +105,15 @@ func TestWrite_Compound(t *testing.T) {
 	fakeData1 := []byte("F")
 	fakeBytes1 := int64(1)
 	fakeOffset1 := int64(0)
-	writer1 := NewWriter(&innerWriter, fakeBytes1, fakeData1, fakeOffset1)
+	fakeTtl1 := int64(0)
+	writer1 := NewWriter(&innerWriter, fakeBytes1, fakeData1, fakeOffset1, fakeTtl1)
 
 	// Second fakeWriter: fakeBytes=3, fakeData="ake d", fakeOffset=0
 	fakeData2 := []byte("ake") // Total fakeData now: "Fake d"
 	fakeBytes2 := int64(3)
 	fakeOffset2 := int64(0)
-	fakeWriter := NewWriter(writer1, fakeBytes2, fakeData2, fakeOffset2)
+	fakeTtl2 := int64(0)
+	fakeWriter := NewWriter(writer1, fakeBytes2, fakeData2, fakeOffset2, fakeTtl2)
 
 	// Write "Request"
 	n, err := fakeWriter.Write([]byte("Request")) // 7 bytes
@@ -124,7 +126,7 @@ func TestReadFrom_FullFake(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(9)           // Inject all fake data
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset, 0)
 	rf, ok := fakeWriter.(io.ReaderFrom)
 	require.True(t, ok)
 
@@ -138,7 +140,7 @@ func TestReadFrom_PartialFake(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(5)           // Inject first 5 bytes: "Fake "
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset, 0)
 	rf, ok := fakeWriter.(io.ReaderFrom)
 	require.True(t, ok)
 
@@ -152,7 +154,7 @@ func TestReadFrom_NoFake(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(0)           // No fake data
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset, 0)
 	rf, ok := fakeWriter.(io.ReaderFrom)
 	require.True(t, ok)
 
@@ -166,7 +168,7 @@ func TestReadFrom_WithOffset(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(4)           // Inject 4 bytes starting from offset
 	fakeOffset := int64(5)          // fakeData[5:] = "data"
-	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset, 0)
 	rf, ok := fakeWriter.(io.ReaderFrom)
 	require.True(t, ok)
 
@@ -180,7 +182,7 @@ func TestReadFrom_NeedsTwoReads(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(6)           // Inject first 6 bytes: "Fake d"
 	fakeOffset := int64(0)
-	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&bytes.Buffer{}, fakeBytes, fakeData, fakeOffset, 0)
 	rf, ok := fakeWriter.(io.ReaderFrom)
 	require.True(t, ok)
 
@@ -203,13 +205,15 @@ func TestReadFrom_Compound(t *testing.T) {
 	fakeData1 := []byte("Fake ")
 	fakeBytes1 := int64(3)
 	fakeOffset1 := int64(0)
-	writer1 := NewWriter(&innerWriter, fakeBytes1, fakeData1, fakeOffset1)
+	fakeTtl1 := int64(0)
+	writer1 := NewWriter(&innerWriter, fakeBytes1, fakeData1, fakeOffset1, fakeTtl1)
 
 	// Second fakeWriter: fakeBytes=5, fakeData="data", fakeOffset=0
 	fakeData2 := []byte("data")
 	fakeBytes2 := int64(5)
 	fakeOffset2 := int64(0)
-	writer2 := NewWriter(writer1, fakeBytes2, fakeData2, fakeOffset2)
+	fakeTtl2 := int64(0)
+	writer2 := NewWriter(writer1, fakeBytes2, fakeData2, fakeOffset2, fakeTtl2)
 
 	n, err := writer2.Write([]byte("Request"))
 	require.NoError(t, err)
@@ -222,7 +226,7 @@ func TestWrite_WithOffsetBeyondFakeData(t *testing.T) {
 	fakeData := []byte("Fake data") // 9 bytes
 	fakeBytes := int64(4)           // Attempt to inject 4 bytes
 	fakeOffset := int64(10)         // Offset beyond fakeData length
-	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&innerWriter, fakeBytes, fakeData, fakeOffset, 0)
 	n, err := fakeWriter.Write([]byte("Request")) // 7 bytes
 	require.NoError(t, err)
 	require.Equal(t, 7, n) // 0 fake + 7 real
@@ -234,7 +238,7 @@ func TestReadFrom_WithOffsetBeyondFakeData(t *testing.T) {
 	fakeBytes := int64(5)           // Attempt to inject 5 bytes
 	fakeOffset := int64(10)         // Offset beyond fakeData length
 	var buffer bytes.Buffer
-	fakeWriter := NewWriter(&buffer, fakeBytes, fakeData, fakeOffset)
+	fakeWriter := NewWriter(&buffer, fakeBytes, fakeData, fakeOffset, 0)
 	rf, ok := fakeWriter.(io.ReaderFrom)
 	require.True(t, ok)
 
@@ -251,7 +255,7 @@ func BenchmarkReadFrom(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		reader := bytes.NewReader([]byte("Request"))
 		var buffer bytes.Buffer
-		fakeWriter := NewWriter(&buffer, fakeBytes, fakeData, fakeOffset)
+		fakeWriter := NewWriter(&buffer, fakeBytes, fakeData, fakeOffset, 0)
 		rf, ok := fakeWriter.(io.ReaderFrom)
 		if !ok {
 			b.Fatalf("Writer does not implement io.ReaderFrom")

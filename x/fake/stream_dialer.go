@@ -28,6 +28,7 @@ type fakeDialer struct {
 	splitPoint int64
 	fakeData   []byte
 	fakeOffset int64
+	fakeTtl    int64
 	md5Sig     bool
 }
 
@@ -40,6 +41,7 @@ func NewStreamDialer(
 	prefixBytes int64,
 	fakeData []byte,
 	fakeOffset int64,
+	fakeTtl int64,
 	md5Sig bool,
 ) (transport.StreamDialer, error) {
 	if dialer == nil {
@@ -50,6 +52,7 @@ func NewStreamDialer(
 		splitPoint: prefixBytes,
 		fakeData:   fakeData,
 		fakeOffset: fakeOffset,
+		fakeTtl:    fakeTtl,
 		md5Sig:     md5Sig,
 	}, nil
 }
@@ -67,5 +70,5 @@ func (d *fakeDialer) DialStream(ctx context.Context, remoteAddr string) (transpo
 			return nil, fmt.Errorf("failed to set MD5 signature: %w", err)
 		}
 	}
-	return transport.WrapConn(innerConn, innerConn, NewWriter(innerConn, d.splitPoint, d.fakeData, d.fakeOffset)), nil
+	return transport.WrapConn(innerConn, innerConn, NewWriter(innerConn, d.splitPoint, d.fakeData, d.fakeOffset, d.fakeTtl)), nil
 }

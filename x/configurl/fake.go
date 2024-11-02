@@ -17,14 +17,14 @@ package configurl
 import (
 	"context"
 	"fmt"
+	"github.com/Jigsaw-Code/outline-sdk/x/fake"
 	"strconv"
 
 	"github.com/Jigsaw-Code/outline-sdk/transport"
-	"github.com/Jigsaw-Code/outline-sdk/transport/fake"
 )
 
 // tls wikipedia request
-var tls_data = [517]byte{
+var tlsData = [517]byte{
 	0x16, 0x03, 0x01, 0x02, 0x00, 0x01, 0x00, 0x01, 0xfc, 0x03, 0x03, 0x03, 0x5f,
 	0x6f, 0x2c, 0xed, 0x13, 0x22, 0xf8, 0xdc, 0xb2, 0xf2, 0x60, 0x48, 0x2d, 0x72,
 	0x66, 0x6f, 0x57, 0xdd, 0x13, 0x9d, 0x1b, 0x37, 0xdc, 0xfa, 0x36, 0x2e, 0xba,
@@ -53,8 +53,8 @@ var tls_data = [517]byte{
 	0xb1, 0xd1, 0xe2, 0xab, 0xe0, 0x16, 0x63, 0xd6, 0xdc, 0xda, 0x84, 0xa4, 0xb8,
 	0x4b, 0xfb, 0x0e, 0x00, 0x15, 0x00, 0xac, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }
-var http_data = []byte("GET / HTTP/1.1\r\nHost: www.wikipedia.org\r\n\r\n")
-var udp_data [64]byte
+var httpData = []byte("GET / HTTP/1.1\r\nHost: www.wikipedia.org\r\n\r\n")
+var udpData [64]byte
 
 func registerFakeStreamDialer(r TypeRegistry[transport.StreamDialer], typeID string, newSD BuildFunc[transport.StreamDialer]) {
 	r.RegisterType(typeID, func(ctx context.Context, config *Config) (transport.StreamDialer, error) {
@@ -72,7 +72,10 @@ func registerFakeStreamDialer(r TypeRegistry[transport.StreamDialer], typeID str
 		// or use a default value (depending on the protocol).
 		// TODO: Read fake offset from the CLI
 		var fakeOffset int64 = 0
-		var md5Sig bool // TODO: Read md5 signature from the CLI or use a default value (false).
-		return fake.NewStreamDialer(sd, int64(prefixBytes), fakeData, fakeOffset, md5Sig)
+		// TODO: Read fake TTL from the CLI or use a default value (8)
+		var fakeTtl int64 = 8
+		// TODO: Read md5 signature from the CLI or use a default value (false).
+		var md5Sig bool = false
+		return fake.NewStreamDialer(sd, int64(prefixBytes), fakeData, fakeOffset, fakeTtl, md5Sig)
 	})
 }

@@ -10,6 +10,7 @@ type fakeWriter struct {
 	fakeBytes  int64
 	fakeData   []byte
 	fakeOffset int64
+	ttl        int64
 }
 
 var _ io.Writer = (*fakeWriter)(nil)
@@ -25,8 +26,8 @@ var _ io.ReaderFrom = (*fakeWriterReaderFrom)(nil)
 // A write will end right after byte index fakeBytes - 1, before a write starting at byte index fakeBytes.
 // For example, if you have a write of [0123456789], fakeData = [abc], fakeOffset = 1, and fakeBytes = 3,
 // you will get writes [bc] and [0123456789]. If the input writer is a [io.ReaderFrom], the output writer will be too.
-func NewWriter(writer io.Writer, fakeBytes int64, fakeData []byte, fakeOffset int64) io.Writer {
-	sw := &fakeWriter{writer, fakeBytes, fakeData, fakeOffset}
+func NewWriter(writer io.Writer, fakeBytes int64, fakeData []byte, fakeOffset int64, fakeTtl int64) io.Writer {
+	sw := &fakeWriter{writer, fakeBytes, fakeData, fakeOffset, fakeTtl}
 	if rf, ok := writer.(io.ReaderFrom); ok {
 		return &fakeWriterReaderFrom{sw, rf}
 	}
