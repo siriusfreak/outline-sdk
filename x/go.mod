@@ -82,4 +82,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/Jigsaw-Code/outline-sdk => /Users/anyhon/GolandProjects/hackathon/outline-sdk/
+replace github.com/Jigsaw-Code/outline-sdk => /Users/slaplante/Dropbox/Documents/Projects/outline-sdk/
