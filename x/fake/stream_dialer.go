@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Jigsaw-Code/outline-sdk/x/fake/signature"
 	"net"
 
 	"github.com/Jigsaw-Code/outline-sdk/transport"
@@ -28,7 +29,7 @@ type fakeDialer struct {
 	splitPoint int64
 	fakeData   []byte
 	fakeOffset int64
-	fakeTtl    int64
+	fakeTtl    int
 	md5Sig     bool
 }
 
@@ -41,7 +42,7 @@ func NewStreamDialer(
 	prefixBytes int64,
 	fakeData []byte,
 	fakeOffset int64,
-	fakeTtl int64,
+	fakeTtl int,
 	md5Sig bool,
 ) (transport.StreamDialer, error) {
 	if dialer == nil {
@@ -63,11 +64,10 @@ func (d *fakeDialer) DialStream(ctx context.Context, remoteAddr string) (transpo
 	if err != nil {
 		return nil, err
 	}
-	if d.md5Sig {
-		conn := innerConn.(*net.TCPConn)
-		err := setMd5Sig(conn, remoteAddr, conn.RemoteAddr().String())
+	if tcpInnerConn, isTcp := innerConn.(*net.TCPConn); isTcp && d.md5Sig {
+		err := signature.Add(tcpInnerConn, remoteAddr, tcpInnerConn.RemoteAddr().String())
 		if err != nil {
-			return nil, fmt.Errorf("failed to set MD5 signature: %w", err)
+			return nil, fmt.Errorf("failed to add MD5 signature: %w", err)
 		}
 	}
 	return transport.WrapConn(innerConn, innerConn, NewWriter(innerConn, d.splitPoint, d.fakeData, d.fakeOffset, d.fakeTtl)), nil
