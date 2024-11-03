@@ -1,8 +1,10 @@
 package fake
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/Jigsaw-Code/outline-sdk/x/packet"
 	"github.com/Jigsaw-Code/outline-sdk/x/ttl"
 	"io"
 	"net"
@@ -10,9 +12,9 @@ import (
 
 type fakeWriter struct {
 	writer     io.Writer
-	fakeBytes  int64
 	fakeData   []byte
 	fakeOffset int64
+	fakeBytes  int64
 	ttl        int
 }
 
@@ -26,11 +28,11 @@ type fakeWriterReaderFrom struct {
 var _ io.ReaderFrom = (*fakeWriterReaderFrom)(nil)
 
 // NewWriter creates a [io.Writer] that ensures the fake data is written before the real data.
-// A write will end right after byte index fakeBytes - 1, before a write starting at byte index fakeBytes.
-// For example, if you have a write of [0123456789], fakeData = [abc], fakeOffset = 1, and fakeBytes = 3,
+// A write will end right after byte index FakeBytes - 1, before a write starting at byte index FakeBytes.
+// For example, if you have a write of [0123456789], FakeData = [abc], FakeOffset = 1, and FakeBytes = 3,
 // you will get writes [bc] and [0123456789]. If the input writer is a [io.ReaderFrom], the output writer will be too.
-func NewWriter(writer io.Writer, fakeBytes int64, fakeData []byte, fakeOffset int64, fakeTtl int) io.Writer {
-	sw := &fakeWriter{writer, fakeBytes, fakeData, fakeOffset, fakeTtl}
+func NewWriter(writer io.Writer, fakeData []byte, fakeOffset int64, fakeBytes int64, fakeTtl int) io.Writer {
+	sw := &fakeWriter{writer, fakeData, fakeOffset, fakeBytes, fakeTtl}
 	if rf, ok := writer.(io.ReaderFrom); ok {
 		return &fakeWriterReaderFrom{sw, rf}
 	}
@@ -39,7 +41,8 @@ func NewWriter(writer io.Writer, fakeBytes int64, fakeData []byte, fakeOffset in
 
 func (w *fakeWriterReaderFrom) ReadFrom(source io.Reader) (written int64, err error) {
 	conn, isNetConn := w.writer.(net.Conn)
-	fakeData := w.getFakeData()
+	bufioReader := bufio.NewReader(source)
+	fakeData := w.getFakeData(bufioReader)
 	if fakeData != nil {
 		if isNetConn {
 			oldTtl, err := ttl.Set(conn, w.ttl)
@@ -66,7 +69,7 @@ func (w *fakeWriterReaderFrom) ReadFrom(source io.Reader) (written int64, err er
 
 func (w *fakeWriter) Write(data []byte) (written int, err error) {
 	conn, isNetConn := w.writer.(net.Conn)
-	fakeData := w.getFakeData()
+	fakeData := w.getFakeData(bufio.NewReader(bytes.NewReader(data)))
 	if fakeData != nil {
 		if isNetConn {
 			oldTtl, err := ttl.Set(conn, w.ttl)
@@ -79,27 +82,35 @@ func (w *fakeWriter) Write(data []byte) (written int, err error) {
 				}
 			}()
 		}
+		fmt.Printf("Writing fake data with TTL %d:\n---\n%s\n---\n", w.ttl, fakeData)
+		fakeData = append(fakeData, make([]byte, len(data)-len(fakeData))...)
 		fakeN, err := w.writer.Write(fakeData)
 		written += fakeN
 		if err != nil {
 			return written, err
 		}
 	}
-	n, err := w.writer.Write(data)
-	written += n
+	fmt.Printf("Writing real data:\n---\n%s\n---\n", data)
+	//n, err := w.writer.Write(data)
+	//written += n
 	return written, err
 }
 
-func (w *fakeWriter) getFakeData() []byte {
-	if w.fakeOffset >= int64(len(w.fakeData)) {
+func (w *fakeWriter) getFakeData(dataReader *bufio.Reader) []byte {
+	fakeData := w.fakeData
+	if fakeData == nil {
+		isHttp := packet.IsHTTP(dataReader)
+		fakeData = getDefaultFakeData(isHttp)
+	}
+	if w.fakeOffset >= int64(len(fakeData)) {
 		return nil
 	}
-	data := w.fakeData[w.fakeOffset:]
-	if w.fakeBytes < int64(len(data)) {
-		data = data[:w.fakeBytes]
+	fakeData = fakeData[w.fakeOffset:]
+	if w.fakeBytes < int64(len(fakeData)) {
+		fakeData = fakeData[:w.fakeBytes]
 	}
-	if len(data) == 0 {
+	if len(fakeData) == 0 {
 		return nil
 	}
-	return data
+	return fakeData
 }
