@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"syscall"
-	"time"
 )
 
 type fakeWriter struct {
@@ -48,33 +47,38 @@ func (w *fakeWriterReaderFrom) ReadFrom(source io.Reader) (written int64, err er
 
 func (w *fakeWriter) Write(data []byte) (written int, err error) {
 	fakeData := w.getFakeData(bufio.NewReader(bytes.NewReader(data)))
-	if fakeData != nil {
-		if err := setsockoptInt(w.fd, syscall.IPPROTO_IP, syscall.IP_TTL, w.ttl); err != nil {
-			return written, fmt.Errorf("failed to set TTL before writing fake data: %w", err)
+	if fakeData == nil {
+		fmt.Printf("No fake data, sending real data:\n---\n%s\n---\n", data)
+		if err := w.send(data, 0); err != nil {
+			return written, fmt.Errorf("failed to send real data: %w", err)
 		}
-		if err := setSocketLinger(w.fd, 1, 0); err != nil {
-			return written, fmt.Errorf("failed to set SO_LINGER before writing fake data: %w", err)
-		}
-		fmt.Printf("Writing fake data with TTL %d:\n---\n%s\n---\n", w.ttl, fakeData)
-		fakeData = append(fakeData, make([]byte, len(data)-len(fakeData))...)
-		err := w.send(fakeData, 0)
-		written += len(fakeData)
-		if err != nil {
-			return written, err
-		}
-		time.Sleep(200 * time.Millisecond)
-		//if err := setsockoptInt(w.fd, syscall.IPPROTO_IP, syscall.IP_TTL, 68); err != nil {
-		//	err = fmt.Errorf("failed to restore TTL after writing fake data: %w", err)
-		//}
-		if err := clearSocketLinger(w.fd); err != nil {
-			err = fmt.Errorf("failed to restore SO_LINGER after writing fake data: %w", err)
-		}
+		written += len(data)
+		return written, err
 	}
-	fmt.Printf("Writing real data:\n---\n%s\n---\n", data)
-	if err := w.send(data, 0); err != nil {
-		return written, fmt.Errorf("failed to send real data: %w", err)
+	if err := setsockoptInt(w.fd, syscall.IPPROTO_IP, syscall.IP_TTL, w.ttl); err != nil {
+		return written, fmt.Errorf("failed to set TTL before writing fake data: %w", err)
 	}
-	written += len(data)
+	if err := setSocketLinger(w.fd, 1, 0); err != nil {
+		return written, fmt.Errorf("failed to set SO_LINGER before writing fake data: %w", err)
+	}
+	fmt.Printf("Writing fake data with TTL %d:\n---\n%s\n---\n", w.ttl, fakeData)
+	fakeData = append(fakeData, make([]byte, len(data)-len(fakeData))...)
+	currentlySentData := make([]byte, len(data))
+	copy(currentlySentData, fakeData)
+	if err = w.send(currentlySentData, 0); err != nil {
+		return written, err
+	}
+	fmt.Printf("Replacing fake data with real data:\n---\n%s\n---\n", data)
+	fmt.Printf("Currently sent data:\n---\n%s\n---\n", currentlySentData)
+	copy(currentlySentData, data)
+	fmt.Printf("Currently sent data after replacement:\n---\n%s\n---\n", currentlySentData)
+	written += len(fakeData)
+	if err := setsockoptInt(w.fd, syscall.IPPROTO_IP, syscall.IP_TTL, 68); err != nil {
+		err = fmt.Errorf("failed to restore TTL after writing fake data: %w", err)
+	}
+	if err := clearSocketLinger(w.fd); err != nil {
+		err = fmt.Errorf("failed to restore SO_LINGER after writing fake data: %w", err)
+	}
 	return written, err
 }
 
