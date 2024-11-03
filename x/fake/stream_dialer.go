@@ -18,10 +18,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Jigsaw-Code/outline-sdk/x/md5signature"
-	"net"
-
 	"github.com/Jigsaw-Code/outline-sdk/transport"
+	"net"
 )
 
 // Example of fake data for TLS
@@ -98,13 +96,34 @@ func (d *fakeDialer) DialStream(ctx context.Context, remoteAddr string) (transpo
 	if err != nil {
 		return nil, err
 	}
-	if tcpInnerConn, isTcp := innerConn.(*net.TCPConn); isTcp && d.md5Sig {
-		err := md5signature.Add(tcpInnerConn, remoteAddr, tcpInnerConn.RemoteAddr().String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to add MD5 signature: %w", err)
-		}
+	tcpConn, ok := innerConn.(*net.TCPConn)
+	if !ok {
+		return nil, fmt.Errorf("oob strategy only works with direct TCP connections")
 	}
-	return transport.WrapConn(innerConn, innerConn, NewWriter(innerConn, d.fakeData, d.fakeOffset, d.fakeBytes, d.fakeTtl)), nil
+
+	fd, err := getSocketDescriptor(tcpConn)
+	if err != nil {
+		return nil, fmt.Errorf("oob strategy was unable to get conn fd: %w", err)
+	}
+
+	err = tcpConn.SetNoDelay(true)
+	if err != nil {
+		return nil, fmt.Errorf("setting tcp NO_DELAY failed: %w", err)
+	}
+
+	return transport.WrapConn(
+		innerConn,
+		innerConn,
+		NewWriter(
+			tcpConn,
+			fd,
+			tcpConn,
+			d.fakeData,
+			d.fakeOffset,
+			d.fakeBytes,
+			d.fakeTtl,
+		),
+	), nil
 }
 
 func getDefaultFakeData(isHttp bool) []byte {
